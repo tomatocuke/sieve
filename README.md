@@ -62,7 +62,7 @@ func main() {
 	fmt.Printf("「%s」 => 「%s」\n\n", text, str)
 }
 
-func check(filter *Sieve, test map[string]bool) {
+func check(filter *sieve.Sieve, test map[string]bool) {
 	for k, v := range test {
 		r, c := filter.Search(k)
 		b := r != ""

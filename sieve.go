@@ -84,15 +84,19 @@ func (s *Sieve) Replace(text string, symbol rune) string {
 func (s *Sieve) Index(ws []rune) (start int, end int, category uint8) {
 	node := s.trie
 
-	var k rune
 	for i, w := range ws {
-		k = filter(w)
-		if k == 0 {
-			continue
+		if w <= 255 {
+			if w <= 'Z' && w >= 'A' {
+				w += 32
+			} else if w >= 'a' && w <= 'z' {
+
+			} else {
+				continue
+			}
 		}
 
 		// 查询是否存在该字符
-		node = node.GetChild(k)
+		node = node.GetChild(w)
 
 		if node != nil {
 			if start == 0 {
@@ -120,17 +124,4 @@ func (s *Sieve) Index(ws []rune) (start int, end int, category uint8) {
 	}
 
 	return
-}
-
-func filter(w rune) rune {
-	// 非ascii或小写字母
-	if w > 255 || (w >= 'a' && w <= 'z') {
-		return w
-	}
-	// 大写转小写
-	if w <= 'Z' && w >= 'A' {
-		return w + 32
-	}
-
-	return 0
 }

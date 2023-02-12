@@ -174,6 +174,7 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag Tag, canReplace bool) 
 	// 匹配成功，适配数组左开右闭把end+1
 	if end == -1 {
 		end = 0
+		start = 0
 	} else {
 		end += 1
 	}

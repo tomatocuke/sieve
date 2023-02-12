@@ -27,7 +27,7 @@ func newNode() *node {
 }
 
 // 添加关键词
-func (r *root) AddWord(word string, tag uint8, canReplace bool) {
+func (r *root) AddWord(word string, tag uint8, canReplace bool) bool {
 	n := r
 	var x uint8
 	for i, w := range word {
@@ -58,7 +58,10 @@ func (r *root) AddWord(word string, tag uint8, canReplace bool) {
 		if x > 0 && n.SymbolStarLen < x {
 			n.SymbolStarLen = x
 		}
+		return true
 	}
+
+	return false
 }
 
 // 删除关键词

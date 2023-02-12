@@ -8,13 +8,15 @@ import (
 // ==== 检测关键词 =====
 
 const (
-	replaceSymbol = '*'
+	ReplaceSymbol = '*'
 )
 
 type Sieve struct {
 	mu sync.RWMutex
 	// DFA算法
 	trie *root
+	// 关键词数量
+	len int
 }
 
 func New() *Sieve {
@@ -30,7 +32,9 @@ func (s *Sieve) Add(words []string) {
 	defer s.mu.Unlock()
 
 	for _, w := range words {
-		s.trie.AddWord(w, 0, true)
+		if s.trie.AddWord(w, 0, true) {
+			s.len++
+		}
 	}
 }
 
@@ -40,7 +44,9 @@ func (s *Sieve) AddWithTag(words []string, tag uint8, canReplace bool) {
 	defer s.mu.Unlock()
 
 	for _, w := range words {
-		s.trie.AddWord(w, tag, canReplace)
+		if s.trie.AddWord(w, tag, canReplace) {
+			s.len++
+		}
 	}
 }
 
@@ -52,6 +58,10 @@ func (s *Sieve) Remove(words []string) {
 	for _, w := range words {
 		s.trie.RemoveWord(w)
 	}
+}
+
+func (s *Sieve) Len() int {
+	return s.len
 }
 
 // 搜索关键词，返回第一个匹配到的关键词和其类型
@@ -98,7 +108,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 
 		if canReplace {
 			for i := start; i < end; i++ {
-				ws[i] = replaceSymbol
+				ws[i] = ReplaceSymbol
 			}
 		}
 
@@ -113,7 +123,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 
 	// 太多了直接全屏蔽
 	if counter >= 5 {
-		return strings.Repeat(string(replaceSymbol), len(ws)), hasTag
+		return strings.Repeat(string(ReplaceSymbol), len(ws)), hasTag
 	}
 
 	return string(ws), hasTag

@@ -7,6 +7,10 @@ import (
 
 // ==== 检测关键词 =====
 
+const (
+	replaceSymbol = '*'
+)
+
 type Sieve struct {
 	mu sync.RWMutex
 	// DFA算法
@@ -21,12 +25,22 @@ func New() *Sieve {
 }
 
 // 批量添加关键词，选择性打标签
-func (s *Sieve) Add(words []string, category uint8) {
+func (s *Sieve) Add(words []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for _, w := range words {
-		s.trie.AddWord(w, category)
+		s.trie.AddWord(w, 0, true)
+	}
+}
+
+// 添加，打标签并设定是否强制替换
+func (s *Sieve) AddWithTag(words []string, tag Tag, canReplace bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, w := range words {
+		s.trie.AddWord(w, tag, canReplace)
 	}
 }
 
@@ -41,87 +55,128 @@ func (s *Sieve) Remove(words []string) {
 }
 
 // 搜索关键词，返回第一个匹配到的关键词和其类型
-func (s *Sieve) Search(text string) (string, uint8) {
+func (s *Sieve) Search(text string) (string, Tag) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	ws := []rune(text)
-	start, end, category := s.Index(ws)
-	return string(ws[start:end]), category
+	start, end, tag, _ := s.index(ws)
+	return string(ws[start:end]), tag
 }
 
-// 替换全部匹配到的关键词
-func (s *Sieve) Replace(text string, symbol rune) string {
+// 替换匹配到的关键词
+func (s *Sieve) Replace(text string) string {
+	result, _ := s.ReplaceAndCheckTags(text, nil)
+	return result
+}
+
+// 替换文本的关键词，检查是否含有特定标签
+func (s *Sieve) ReplaceAndCheckTags(text string, tags []Tag) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	ws := []rune(text)
+	var (
+		start, end, offset, counter int
 
-	var start, end, offset, counter int
+		ws         = []rune(text)
+		canReplace bool
+		hasTag     bool
+		tag        Tag
+	)
+
 	for counter < 5 {
 		counter++
 
 		offset = end
-		start, end, _ = s.Index(ws[offset:])
+		start, end, tag, canReplace = s.index(ws[offset:])
 		if end == 0 {
 			break
 		}
 
 		start += offset
 		end += offset
-		for i := start; i < end; i++ {
-			ws[i] = symbol
+
+		if canReplace {
+			for i := start; i < end; i++ {
+				ws[i] = replaceSymbol
+			}
+		}
+
+		if !hasTag && len(tags) > 0 {
+			for _, t := range tags {
+				if t == tag {
+					hasTag = true
+				}
+			}
 		}
 	}
 
+	// 太多了直接全屏蔽
 	if counter >= 5 {
-		return strings.Repeat(string(symbol), len(ws))
+		return strings.Repeat(string(replaceSymbol), len(ws)), hasTag
 	}
 
-	return string(ws)
+	return string(ws), hasTag
 }
 
-func (s *Sieve) Index(ws []rune) (start int, end int, category uint8) {
+func (s *Sieve) index(ws []rune) (start int, end int, tag Tag, canReplace bool) {
+
 	node := s.trie
+	jumping := false
 
-	for i, w := range ws {
-		if w <= 255 {
-			if w <= 'Z' && w >= 'A' {
-				w += 32
-			} else if w >= 'a' && w <= 'z' {
-
-			} else {
-				continue
-			}
+	length := len(ws)
+	for i := 0; i < length; i++ {
+		w := trans(ws[i])
+		if w <= 0 {
+			continue
 		}
 
 		// 查询是否存在该字符
 		node = node.GetChild(w)
 
-		if node != nil {
+		// 举例 「苹果」和「苹果**本」是关键词
+		if node == nil {
+			// 苹果笔记
+			if end > 0 {
+				break
+			}
+			// 苹方
+			if start > 0 {
+				start = 0
+				jumping = false
+			}
+			node = s.trie
+		} else {
+			// 苹
 			if start == 0 {
 				start = i
 			}
+			// 苹果
 			if node.IsEnd {
 				end = i
-				category = node.Category
+				tag = node.Tag
+				canReplace = node.CanReplace
 			}
-		} else {
-			if end == 0 {
-				start = 0
-				node = s.trie
-			} else {
-				break
+			// 当前字符「果」，向后偏移2位
+			if node.SymbolStarLen > 0 && !jumping {
+				jumping = true
+				i += int(node.SymbolStarLen)
+				end += int(node.SymbolStarLen)
+				if end >= length {
+					end = length - 1
+				}
 			}
 		}
 	}
 
-	// 结尾匹配一半
+	// 匹配失败，防止匹配一半start>0的情况。
+	// 匹配成功，适配数组左开右闭把end+1
 	if end == 0 {
 		start = 0
 	} else {
-		end += 1 // 为了切片右边闭合
+		end += 1
 	}
 
+	// fmt.Println("index", string(ws), start, end, canReplace)
 	return
 }

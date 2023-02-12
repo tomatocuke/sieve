@@ -1,11 +1,22 @@
 package sieve
 
+const (
+	// 通配符
+	symbolStar rune = '*'
+)
+
+type Tag uint8
+
 // 节点
 type node struct {
 	// 是否结束
 	IsEnd bool
-	// 分类 (非必需)
-	Category uint8
+	// 标签
+	Tag Tag
+	// 替换
+	CanReplace bool
+	// 通配符长度
+	SymbolStarLen uint8
 	// 联想字符
 	Children map[rune]*node
 }
@@ -18,15 +29,37 @@ func newNode() *node {
 }
 
 // 添加关键词
-func (r *root) AddWord(word string, category uint8) {
+func (r *root) AddWord(word string, tag Tag, canReplace bool) {
 	n := r
-	for _, w := range word {
-		n = n.addChild(w)
+	var x uint8
+	for i, w := range word {
+		if w == symbolStar {
+			// 不接受首字符是通配符
+			if i == 0 {
+				break
+			}
+			x++
+		} else {
+			w = trans(w)
+			if w > 0 {
+				// 解决添加相同关键词，通配符数量叠加问题
+				if n.SymbolStarLen < x {
+					n.SymbolStarLen = x
+				}
+				n = n.addChild(w)
+				x = 0
+			}
+		}
 	}
+
 	// 非根节点才修改，防止无效关键词修改根节点
 	if n != r {
 		n.IsEnd = true
-		n.Category = category
+		n.Tag = tag
+		n.CanReplace = canReplace
+		if x > 0 && n.SymbolStarLen < x {
+			n.SymbolStarLen = x
+		}
 	}
 }
 
@@ -78,4 +111,16 @@ func (n *node) addChild(w rune) *node {
 	child := newNode()
 	n.Children[w] = child
 	return child
+}
+
+func trans(w rune) rune {
+	if w > 255 || w == symbolStar || (w >= 'a' && w <= 'z') || (w >= '0' && w <= '9') {
+		return w
+	}
+
+	if w >= 'A' && w <= 'Z' {
+		return w + 32
+	}
+
+	return -1
 }

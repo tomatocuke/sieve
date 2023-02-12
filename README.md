@@ -15,7 +15,7 @@
 ### 使用
 
 ```sh
-go get github.com/tomatocuke/sieve
+go get -u github.com/tomatocuke/sieve
 ```
 
 ```go
@@ -82,7 +82,7 @@ func main() {
 
 	// 分别查找是否有分类1和分类2
 	text = "有苹果和桃子吗，多少钱"
-	s, has := filter.ReplaceAndCheckTags(text, []Tag{tag2})
+	s, has := filter.ReplaceAndCheckTags(text, []sieve.Tag{tag2})
 
 	// 打印：替换并检查是否涉嫌交易: 有**和**吗，多少钱 true
 	fmt.Println("替换并检查是否涉嫌交易:", s, has)

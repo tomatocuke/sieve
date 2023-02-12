@@ -1,3 +1,3 @@
-module github.com/tomatocuke/sieve
+module sieve
 
 go 1.16

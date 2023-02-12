@@ -114,7 +114,16 @@ func (n *node) addChild(w rune) *node {
 }
 
 func trans(w rune) rune {
-	if w > 255 || w == symbolStar || (w >= 'a' && w <= 'z') || (w >= '0' && w <= '9') {
+	if w > 255 {
+		// 这些是符号，包含了中文符号和一些杂乱符号
+		if (w > 8200 && w < 8251) || (w > 12288 && w < 12320) || (w > 65000 && w < 65535) {
+			return -1
+		}
+		// 其余文字
+		return w
+	}
+
+	if w == symbolStar || (w >= 'a' && w <= 'z') || (w >= '0' && w <= '9') {
 		return w
 	}
 

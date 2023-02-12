@@ -123,6 +123,8 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag Tag, canReplace bool) 
 
 	node := s.trie
 	jumping := false
+	start = -1
+	end = -1
 
 	length := len(ws)
 	for i := 0; i < length; i++ {
@@ -133,22 +135,21 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag Tag, canReplace bool) 
 
 		// 查询是否存在该字符
 		node = node.GetChild(w)
-
 		// 举例 「苹果」和「苹果**本」是关键词
 		if node == nil {
 			// 苹果笔记
-			if end > 0 {
+			if end > -1 {
 				break
 			}
 			// 苹方
-			if start > 0 {
-				start = 0
+			if start > -1 {
+				start = -1
 				jumping = false
 			}
 			node = s.trie
 		} else {
 			// 苹
-			if start == 0 {
+			if start == -1 {
 				start = i
 			}
 			// 苹果
@@ -169,14 +170,13 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag Tag, canReplace bool) 
 		}
 	}
 
-	// 匹配失败，防止匹配一半start>0的情况。
+	// 匹配失败，防止匹配一半的情况。
 	// 匹配成功，适配数组左开右闭把end+1
-	if end == 0 {
-		start = 0
+	if end == -1 {
+		end = 0
 	} else {
 		end += 1
 	}
 
-	// fmt.Println("index", string(ws), start, end, canReplace)
 	return
 }

@@ -5,14 +5,12 @@ const (
 	symbolStar rune = '*'
 )
 
-type Tag uint8
-
 // 节点
 type node struct {
 	// 是否结束
 	IsEnd bool
 	// 标签
-	Tag Tag
+	Tag uint8
 	// 替换
 	CanReplace bool
 	// 通配符长度
@@ -29,7 +27,7 @@ func newNode() *node {
 }
 
 // 添加关键词
-func (r *root) AddWord(word string, tag Tag, canReplace bool) {
+func (r *root) AddWord(word string, tag uint8, canReplace bool) {
 	n := r
 	var x uint8
 	for i, w := range word {

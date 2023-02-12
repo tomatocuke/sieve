@@ -35,7 +35,7 @@ func (s *Sieve) Add(words []string) {
 }
 
 // 添加，打标签并设定是否强制替换
-func (s *Sieve) AddWithTag(words []string, tag Tag, canReplace bool) {
+func (s *Sieve) AddWithTag(words []string, tag uint8, canReplace bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -55,7 +55,7 @@ func (s *Sieve) Remove(words []string) {
 }
 
 // 搜索关键词，返回第一个匹配到的关键词和其类型
-func (s *Sieve) Search(text string) (string, Tag) {
+func (s *Sieve) Search(text string) (string, uint8) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -71,7 +71,7 @@ func (s *Sieve) Replace(text string) string {
 }
 
 // 替换文本的关键词，检查是否含有特定标签
-func (s *Sieve) ReplaceAndCheckTags(text string, tags []Tag) (string, bool) {
+func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -81,7 +81,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []Tag) (string, bool) {
 		ws         = []rune(text)
 		canReplace bool
 		hasTag     bool
-		tag        Tag
+		tag        uint8
 	)
 
 	for counter < 5 {
@@ -119,7 +119,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []Tag) (string, bool) {
 	return string(ws), hasTag
 }
 
-func (s *Sieve) index(ws []rune) (start int, end int, tag Tag, canReplace bool) {
+func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool) {
 
 	node := s.trie
 	jumping := false

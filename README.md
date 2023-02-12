@@ -72,8 +72,8 @@ func main() {
 	// 2. 标签分类 和 默认替换
 	// 需要自定义标签
 	const (
-		tag1 sieve.Tag = iota + 1 // 水果，需要被替换
-		tag2                // 交易，存在风险，不替换，给接收者提示
+		tag1  = iota + 1 // 水果，需要被替换
+		tag2             // 交易，存在风险，不替换，给接收者提示
 	)
 	// 给苹果和桃子打标签1，设置为可被替换。
 	filter.AddWithTag([]string{"苹果", "桃子"}, tag1, true)
@@ -82,7 +82,7 @@ func main() {
 
 	// 分别查找是否有分类1和分类2
 	text = "有苹果和桃子吗，多少钱"
-	s, has := filter.ReplaceAndCheckTags(text, []sieve.Tag{tag2})
+	s, has := filter.ReplaceAndCheckTags(text, []uint8{tag2})
 
 	// 打印：替换并检查是否涉嫌交易: 有**和**吗，多少钱 true
 	fmt.Println("替换并检查是否涉嫌交易:", s, has)

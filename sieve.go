@@ -6,15 +6,10 @@ import (
 )
 
 // ==== 检测关键词 =====
-
-const (
-	ReplaceSymbol = '*'
-)
-
 type Sieve struct {
 	mu sync.RWMutex
 	// DFA算法
-	trie *root
+	trie *node
 	// 关键词数量
 	len int
 }
@@ -56,7 +51,9 @@ func (s *Sieve) Remove(words []string) {
 	defer s.mu.Unlock()
 
 	for _, w := range words {
-		s.trie.RemoveWord(w)
+		if s.trie.RemoveWord(w) {
+			s.len--
+		}
 	}
 }
 
@@ -70,7 +67,7 @@ func (s *Sieve) Search(text string) (string, uint8) {
 	defer s.mu.RUnlock()
 
 	ws := []rune(text)
-	start, end, tag, _ := s.index(ws)
+	start, end, tag, _ := s.trie.Search(ws)
 	return string(ws[start:end]), tag
 }
 
@@ -98,7 +95,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 		counter++
 
 		offset = end
-		start, end, tag, canReplace = s.index(ws[offset:])
+		start, end, tag, canReplace = s.trie.Search(ws[offset:])
 		if end == 0 {
 			break
 		}
@@ -109,7 +106,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 		if canReplace {
 			// fmt.Println("替换:", string(ws), "=>", string(ws[start:end]))
 			for i := start; i < end; i++ {
-				ws[i] = ReplaceSymbol
+				ws[i] = symbolStar
 			}
 		}
 
@@ -124,77 +121,8 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 
 	// 太多了直接全屏蔽
 	if counter >= 5 {
-		return strings.Repeat(string(ReplaceSymbol), len(ws)), hasTag
+		return strings.Repeat(string(symbolStar), len(ws)), hasTag
 	}
 
 	return string(ws), hasTag
-}
-
-func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool) {
-	// fmt.Println("index start:", string(ws))
-	node := s.trie
-	jump := 0
-	start = -1
-	end = -1
-
-	length := len(ws)
-	for i := 0; i < length; i++ {
-		w := trans(ws[i])
-		if w <= 0 {
-			continue
-		}
-		// fmt.Println("当前字符:", string(w))
-
-		// 查询是否存在该字符
-		node = node.GetChild(w)
-		// 举例 「苹果」和「苹果**本」是关键词
-		if node == nil {
-			// 苹果笔记
-			if end > -1 {
-				break
-			}
-			// 苹方
-			if start > -1 {
-				start = -1
-				i = i - jump - 1
-				jump = 0
-			}
-			node = s.trie
-		} else {
-			// 苹
-			if start == -1 {
-				start = i
-				// fmt.Println("start:", start, string(w))
-			}
-			// 苹果
-			if node.IsEnd {
-				end = i
-				tag = node.Tag
-				canReplace = node.CanReplace
-			}
-			// 当前字符「果」，向后偏移2位
-			// if node.SymbolStarLen > 0 && jump == 0 {
-			// 	jump = int(node.SymbolStarLen)
-			// 	if i+jump >= length {
-			// 		jump = length - i - 1
-			// 	}
-
-			// 	// fmt.Println("跳跃", jump)
-			// 	i += jump
-			// 	end = i
-			// }
-		}
-	}
-
-	// 匹配成功时，适配数组左开右闭把end+1
-	if end <= 0 {
-		start = 0
-		end = 0
-	} else {
-		end += 1
-	}
-
-	// fmt.Println("index end:", string(ws), start, end)
-
-	return
 }

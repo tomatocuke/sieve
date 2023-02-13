@@ -13,51 +13,34 @@ type node struct {
 	Tag uint8
 	// 替换
 	CanReplace bool
-	// 通配符长度
-	SymbolStarLen uint8
 	// 联想字符
 	Children map[rune]*node
 }
-
-// 根节点
-type root = node
 
 func newNode() *node {
 	return &node{}
 }
 
 // 添加关键词
-func (r *root) AddWord(word string, tag uint8, canReplace bool) bool {
-	n := r
-	var x uint8
-	for i, w := range word {
-		if w == symbolStar {
-			// 不接受首字符是通配符
-			if i == 0 {
-				break
-			}
-			x++
-		} else {
-			w = trans(w)
-			if w > 0 {
-				// 解决添加相同关键词，通配符数量叠加问题
-				if n.SymbolStarLen < x {
-					n.SymbolStarLen = x
-				}
-				n = n.addChild(w)
-				x = 0
-			}
+func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
+	node := root
+	for _, w := range word {
+		// 不能以通配符开始
+		if w == symbolStar && node == root {
+			break
+		}
+
+		w = trans(w)
+		if w > 0 {
+			node = node.addChild(w)
 		}
 	}
 
 	// 非根节点才修改，防止无效关键词修改根节点
-	if n != r {
-		n.IsEnd = true
-		n.Tag = tag
-		n.CanReplace = canReplace
-		if x > 0 && n.SymbolStarLen < x {
-			n.SymbolStarLen = x
-		}
+	if node != root {
+		node.IsEnd = true
+		node.Tag = tag
+		node.CanReplace = canReplace
 		return true
 	}
 
@@ -65,37 +48,30 @@ func (r *root) AddWord(word string, tag uint8, canReplace bool) bool {
 }
 
 // 删除关键词
-func (r *root) RemoveWord(word string) {
+func (root *node) RemoveWord(word string) bool {
 	path := []rune(word)
 	ptrs := make([]*node, len(path))
-	n := r
+	node := root
 
 	ok := false
 	// 正向检验关键词是否存在
 	for i, w := range path {
-		ptrs[i] = n
-		n, ok = n.Children[w]
+		node, ok = node.Children[w]
 		if !ok {
-			return
+			return false
 		}
+		ptrs[i] = node
 	}
 
-	n.IsEnd = false
-	for i := len(path) - 1; i >= 0; i-- {
-		if i > 0 && !ptrs[i].IsEnd && len(ptrs[i].Children) == 0 {
-			delete(ptrs[i-1].Children, path[i-1])
+	node.IsEnd = false
+	for i := len(path) - 1; i > 0; i-- {
+		if ptrs[i].IsEnd || len(ptrs[i].Children) > 0 {
+			break
 		}
+		delete(ptrs[i-1].Children, path[i])
 	}
 
-}
-
-// 获取子字符节点
-func (n *node) GetChild(w rune) *node {
-	child, ok := n.Children[w]
-	if ok {
-		return child
-	}
-	return nil
+	return true
 }
 
 // 添加单个字符
@@ -112,6 +88,87 @@ func (n *node) addChild(w rune) *node {
 	child := newNode()
 	n.Children[w] = child
 	return child
+}
+
+// 获取子字符节点
+func (n *node) getChild(w rune) *node {
+	child, ok := n.Children[w]
+	if ok {
+		return child
+	}
+	return nil
+}
+
+func (root *node) Search(ws []rune) (start int, end int, tag uint8, canReplace bool) {
+	if len(ws) == 0 {
+		return
+	}
+
+	node := root
+	start = -1
+
+	length := len(ws)
+	for i := 0; i < length; i++ {
+		w := trans(ws[i])
+		if w <= 0 {
+			continue
+		}
+		// fmt.Println("当前字符是:", i, string(w))
+
+		// 查询是否存在该字符，如果不存在尝试查找通配符
+		temp := node.getChild(w)
+		if node != root && temp == nil {
+			node = node.getChild(symbolStar)
+		} else {
+			node = temp
+		}
+
+		// 举例 「苹果」和「苹果**本」是关键词
+		if node == nil {
+			// 苹果笔记
+			if end > 0 {
+				break
+			}
+			// 当前未匹配，回退到根节点
+			if node == nil {
+				node = root
+			}
+
+			// 苹方
+			if start >= 0 {
+				start = -1
+				// 当前字符可能不是关键字的中间字符，但是可能是起始字符，重新判断
+				i--
+			}
+		} else {
+			// 苹
+			if start == -1 {
+				start = i
+			}
+
+			// 苹果
+			if node.IsEnd {
+				end = i
+				tag = node.Tag
+				canReplace = node.CanReplace
+				if len(node.Children) == 0 {
+					break
+				}
+			}
+		}
+
+	}
+
+	// 匹配成功时，适配数组左开右闭把end+1
+	if end == 0 {
+		start = 0
+		end = 0
+	} else {
+		end += 1
+	}
+
+	// fmt.Println("index end:", string(ws), start, end)
+	return
 }
 
 func trans(w rune) rune {

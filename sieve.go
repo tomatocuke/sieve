@@ -173,16 +173,16 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool
 				canReplace = node.CanReplace
 			}
 			// 当前字符「果」，向后偏移2位
-			if node.SymbolStarLen > 0 && jump == 0 {
-				jump = int(node.SymbolStarLen)
-				if i+jump >= length {
-					jump = length - i - 1
-				}
+			// if node.SymbolStarLen > 0 && jump == 0 {
+			// 	jump = int(node.SymbolStarLen)
+			// 	if i+jump >= length {
+			// 		jump = length - i - 1
+			// 	}
 
-				// fmt.Println("跳跃", jump)
-				i += jump
-				end = i
-			}
+			// 	// fmt.Println("跳跃", jump)
+			// 	i += jump
+			// 	end = i
+			// }
 		}
 	}
 

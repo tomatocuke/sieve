@@ -107,6 +107,7 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 		end += offset
 
 		if canReplace {
+			// fmt.Println("替换:", string(ws), "=>", string(ws[start:end]))
 			for i := start; i < end; i++ {
 				ws[i] = ReplaceSymbol
 			}
@@ -130,9 +131,9 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 }
 
 func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool) {
-
+	// fmt.Println("index start:", string(ws))
 	node := s.trie
-	jumping := false
+	jump := 0
 	start = -1
 	end = -1
 
@@ -142,6 +143,7 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool
 		if w <= 0 {
 			continue
 		}
+		// fmt.Println("当前字符:", string(w))
 
 		// 查询是否存在该字符
 		node = node.GetChild(w)
@@ -154,13 +156,15 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool
 			// 苹方
 			if start > -1 {
 				start = -1
-				jumping = false
+				i = i - jump - 1
+				jump = 0
 			}
 			node = s.trie
 		} else {
 			// 苹
 			if start == -1 {
 				start = i
+				// fmt.Println("start:", start, string(w))
 			}
 			// 苹果
 			if node.IsEnd {
@@ -169,25 +173,28 @@ func (s *Sieve) index(ws []rune) (start int, end int, tag uint8, canReplace bool
 				canReplace = node.CanReplace
 			}
 			// 当前字符「果」，向后偏移2位
-			if node.SymbolStarLen > 0 && !jumping {
-				jumping = true
-				i += int(node.SymbolStarLen)
-				end += int(node.SymbolStarLen)
-				if end >= length {
-					end = length - 1
+			if node.SymbolStarLen > 0 && jump == 0 {
+				jump = int(node.SymbolStarLen)
+				if i+jump >= length {
+					jump = length - i - 1
 				}
+
+				// fmt.Println("跳跃", jump)
+				i += jump
+				end = i
 			}
 		}
 	}
 
-	// 匹配失败，防止匹配一半的情况。
-	// 匹配成功，适配数组左开右闭把end+1
-	if end == -1 {
-		end = 0
+	// 匹配成功时，适配数组左开右闭把end+1
+	if end <= 0 {
 		start = 0
+		end = 0
 	} else {
 		end += 1
 	}
+
+	// fmt.Println("index end:", string(ws), start, end)
 
 	return
 }

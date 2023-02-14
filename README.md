@@ -42,10 +42,11 @@ func main() {
 	filter.Remove([]string{"苹果派"})
 
 	s, _ := filter.Search(text)
-	// 搜索: 苹果4S手机 （返回第一个匹配到的关键词的最大长度)
+	// 搜索: 苹果4S手机 （返回第一个匹配到的关键词)
 	fmt.Println("搜索:", s)
 
 	// 替换: 我有香水、******、**派和红*** 没有苹果手机
+	// 注意，如果一句话包含5个违禁词，直接全屏蔽
 	fmt.Println("替换:", filter.Replace(text), filter.Replace("没有苹果手机"))
 
 

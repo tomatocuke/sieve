@@ -17,20 +17,16 @@ type node struct {
 	Children map[rune]*node
 }
 
-func newNode() *node {
-	return &node{}
-}
-
 // 添加关键词
 func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
 	node := root
-	for _, w := range word {
-		// 不能以通配符开始
-		if w == symbolStar && node == root {
+	for i, w := range word {
+		w = trans(w)
+		// 不能以通配符或者符号开始
+		if i == 0 && (w == symbolStar || w < 0) {
 			break
 		}
 
-		w = trans(w)
 		if w > 0 {
 			node = node.addChild(w)
 		}
@@ -85,7 +81,7 @@ func (n *node) addChild(w rune) *node {
 		}
 	}
 
-	child := newNode()
+	child := &node{}
 	n.Children[w] = child
 	return child
 }

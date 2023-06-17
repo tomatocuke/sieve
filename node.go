@@ -1,5 +1,9 @@
 package sieve
 
+import (
+	"unicode"
+)
+
 const (
 	// 通配符
 	symbolStar rune = '*'
@@ -20,7 +24,9 @@ type node struct {
 // 添加关键词
 func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
 	node := root
-	for i, w := range word {
+	var i, j int
+	var w rune
+	for i, w = range word {
 		w = trans(w)
 		// 不能以通配符或者符号开始
 		if i == 0 && (w == symbolStar || w < 0) {
@@ -29,7 +35,14 @@ func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
 
 		if w > 0 {
 			node = node.addChild(w)
+			j++
 		}
+	}
+
+	// 禁止单个字+符号的形式，导致单个字被错杀
+	if i > 1 && j < 2 {
+		root.RemoveWord(word)
+		return false
 	}
 
 	// 非根节点才修改，防止无效关键词修改根节点
@@ -169,8 +182,8 @@ func (root *node) Search(ws []rune) (start int, end int, tag uint8, canReplace b
 
 func trans(w rune) rune {
 	if w > 255 {
-		// 这些是符号，包含了中文符号和一些杂乱符号
-		if (w > 8200 && w < 8251) || (w > 12288 && w < 12320) || (w > 65000 && w < 65535) {
+		// 判断是否为符号
+		if unicode.IsPunct(w) {
 			return -1
 		}
 		// 其余文字

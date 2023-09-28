@@ -1,12 +1,13 @@
 package sieve
 
 import (
+	"strings"
 	"unicode"
 )
 
 const (
 	// 通配符
-	symbolStar rune = '*'
+	symbolStar = '*'
 )
 
 // 节点
@@ -16,20 +17,30 @@ type node struct {
 	// 标签
 	Tag uint8
 	// 替换
-	CanReplace bool
+	AutoReplace bool
 	// 联想字符
 	Children map[rune]*node
 }
 
 // 添加关键词
-func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
+func (root *node) AddWord(word string, tag uint8, autoReplace bool) bool {
+	word = strings.TrimSpace(word)
+	if len(word) == 0 {
+		return true
+	}
+
 	node := root
 	var i, j int
 	var w rune
 	for i, w = range word {
+		// 首字符为#是注释，忽略
+		if i == 0 && w == '#' {
+			return true
+		}
+
 		w = trans(w)
-		// 不能以通配符或者符号开始
-		if i == 0 && (w == symbolStar || w < 0) {
+		// 首字符不能以符号或者通配符开始
+		if i == 0 && (w < 0 || w == symbolStar) {
 			break
 		}
 
@@ -40,7 +51,7 @@ func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
 	}
 
 	// 禁止单个字+符号的形式，导致单个字被错杀
-	if i > 1 && j < 2 {
+	if i > 1 && j < 2 && len([]rune(word)) > 1 {
 		root.RemoveWord(word)
 		return false
 	}
@@ -49,7 +60,7 @@ func (root *node) AddWord(word string, tag uint8, canReplace bool) bool {
 	if node != root {
 		node.IsEnd = true
 		node.Tag = tag
-		node.CanReplace = canReplace
+		node.AutoReplace = autoReplace
 		return true
 	}
 
@@ -108,7 +119,7 @@ func (n *node) getChild(w rune) *node {
 	return nil
 }
 
-func (root *node) Search(ws []rune) (start int, end int, tag uint8, canReplace bool) {
+func (root *node) Search(ws []rune) (start int, end int, tag uint8, autoReplace bool) {
 	if len(ws) == 0 {
 		return
 	}
@@ -159,7 +170,7 @@ func (root *node) Search(ws []rune) (start int, end int, tag uint8, canReplace b
 			if node.IsEnd {
 				end = i
 				tag = node.Tag
-				canReplace = node.CanReplace
+				autoReplace = node.AutoReplace
 				if len(node.Children) == 0 {
 					break
 				}

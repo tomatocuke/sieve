@@ -3,17 +3,16 @@ package sieve
 import (
 	"bufio"
 	"io"
+	"net/http"
 	"os"
+	"strings"
 	"sync"
 )
 
 // ==== 检测关键词 =====
 type Sieve struct {
-	mu sync.RWMutex
-	// DFA算法
+	mu   sync.RWMutex
 	trie *node
-	// 关键词数量
-	len int
 }
 
 func New() *Sieve {
@@ -24,22 +23,34 @@ func New() *Sieve {
 }
 
 // 简单添加关键词
-func (s *Sieve) Add(words []string) int {
-	return s.AddWithTag(words, 0, true)
+func (s *Sieve) Add(words []string) (fail []string) {
+	return s.add(words, 0, true)
 }
 
-// 从文本添加关键词，打标签并设定是否强制替换
-func (s *Sieve) AddByFile(filename string, tag uint8, canReplace bool) (int, error) {
+// 从文本添加关键词，打标签并设定是否自动替换为*
+func (s *Sieve) AddByFile(filename string, tag uint8, autoReplace bool) (fails []string, err error) {
 	const delim = '\n'
 	words := make([]string, 0, 2048)
 
-	f, err := os.Open(filename)
-	if err != nil {
-		return 0, err
+	var reader io.Reader
+	// 远程文件
+	if strings.HasPrefix(filename, "http") {
+		resp, err := http.Get(filename)
+		if err != nil {
+			return nil, err
+		}
+		reader = resp.Body
+		defer resp.Body.Close()
+	} else {
+		f, err := os.Open(filename)
+		if err != nil {
+			return nil, err
+		}
+		reader = f
+		defer f.Close()
 	}
-	defer f.Close()
 
-	br := bufio.NewReader(f)
+	br := bufio.NewReader(reader)
 	for {
 		b, err := br.ReadBytes(delim)
 		words = append(words, string(b))
@@ -48,58 +59,22 @@ func (s *Sieve) AddByFile(filename string, tag uint8, canReplace bool) (int, err
 		}
 	}
 
-	i := s.AddWithTag(words, tag, canReplace)
-	return i, nil
-}
-
-// 添加关键词，打标签并设定是否强制替换
-func (s *Sieve) AddWithTag(words []string, tag uint8, canReplace bool) (i int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for _, w := range words {
-		if s.trie.AddWord(w, tag, canReplace) {
-			i++
-		}
-	}
-
-	s.len += i
+	fails = s.add(words, tag, autoReplace)
 
 	return
 }
 
 // 移除关键词
-func (s *Sieve) Remove(words []string) int {
+func (s *Sieve) Remove(words []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var i int
 	for _, w := range words {
-		if s.trie.RemoveWord(w) {
-			i++
-		}
+		s.trie.RemoveWord(w)
 	}
-	s.len -= i
-	return i
 }
 
-func (s *Sieve) Len() int {
-	return s.len
-}
-
-// 是否含有关键词
-func (s *Sieve) Has(text string) bool {
-	word, _ := s.Search(text)
-	return word != ""
-}
-
-// 替换所有关键词
-func (s *Sieve) Replace(text string) string {
-	result, _ := s.ReplaceAndCheckTags(text, nil)
-	return result
-}
-
-// 返回文本中第一个关键词及其类型
+// 返回文本中第一个关键词及其标签
 func (s *Sieve) Search(text string) (string, uint8) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -109,24 +84,23 @@ func (s *Sieve) Search(text string) (string, uint8) {
 	return string(ws[start:end]), tag
 }
 
-// 替换文本的关键词，检查是否含有特定标签
-func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
+// 替换文本的关键词
+func (s *Sieve) Replace(text string) (string, map[uint8][]string) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var (
 		start, end, offset int
 
-		ws         = []rune(text)
-		canReplace bool
-		hasTag     bool
-		tag        uint8
+		ws          = []rune(text)
+		keywords    = make(map[uint8][]string)
+		tag         uint8
+		autoReplace bool
 	)
 
 	for {
-
 		offset = end
-		start, end, tag, canReplace = s.trie.Search(ws[offset:])
+		start, end, tag, autoReplace = s.trie.Search(ws[offset:])
 		if end == 0 {
 			break
 		}
@@ -134,21 +108,30 @@ func (s *Sieve) ReplaceAndCheckTags(text string, tags []uint8) (string, bool) {
 		start += offset
 		end += offset
 
-		if canReplace {
+		keywords[tag] = append(keywords[tag], string(ws[start:end]))
+
+		if autoReplace {
 			// fmt.Println("替换:", string(ws), "=>", string(ws[start:end]))
 			for i := start; i < end; i++ {
 				ws[i] = symbolStar
 			}
 		}
 
-		if !hasTag && len(tags) > 0 {
-			for _, t := range tags {
-				if t == tag {
-					hasTag = true
-				}
-			}
+	}
+
+	return string(ws), keywords
+}
+
+// 添加关键词，打标签并设定是否强制替换
+func (s *Sieve) add(words []string, tag uint8, autoReplace bool) (fail []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, w := range words {
+		if !s.trie.AddWord(w, tag, autoReplace) {
+			fail = append(fail, w)
 		}
 	}
 
-	return string(ws), hasTag
+	return
 }

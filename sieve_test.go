@@ -86,7 +86,7 @@ func demo4() {
 	filter.AddByFile(myDemoKeywords, TagTrade, false)
 	replaceText, keywords := filter.Replace(text)
 
-	fmt.Println("\n===== 特殊功能：不替换 (仅发现，另行处理) =====")
+	fmt.Println("\n===== 特殊功能：不替换 (仅发现，另行处理)")
 	fmt.Printf("添加词典: %s 设置标签: %d 不替换\n", myDemoKeywords, TagTrade)
 	fmt.Println("测试:", text)
 	fmt.Println("替换后:", replaceText)
